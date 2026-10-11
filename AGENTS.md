@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-IdeaJar is a TypeScript MCP server exposing `idea_add`, `idea_list`, and `idea_update` over stdio.
+IdeaJar is a TypeScript MCP server exposing `idea_add`, `idea_list`, `idea_update`, and `idea_delete` over stdio.
 
 - `src/index.ts`: tool registration, transport, and storage-path configuration.
 - `src/store.ts`: Zod validation and JSON persistence.

@@ -33,4 +33,10 @@ server.registerTool("idea_update", {
   annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
 }, ({ id, text }) => result(store.update(id, text)));
 
+server.registerTool("idea_delete", {
+  description: "Delete an idea from IdeaJar by its ID. Return the deleted idea.",
+  inputSchema: { id: z.uuid() },
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+}, ({ id }) => result(store.delete(id)));
+
 await server.connect(new StdioServerTransport());

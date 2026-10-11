@@ -1,14 +1,17 @@
 # IdeaJar
 
-A tiny TypeScript MCP server for jotting down ideas. Each idea is just text and the date it was saved, with an ID so you can edit it later.
+A tiny TypeScript MCP server for jotting down ideas. Each idea is just text and the date it was saved, with an ID so you can edit or delete it later.
 
-Runs over **stdio**, without authentication. All records live in one JSON file. It exposes three tools:
+Runs over **stdio**, without authentication. All records live in one JSON file. It exposes four tools:
 
 | Tool | Input | Action |
 | --- | --- | --- |
 | `idea_add` | `text` | Save an idea and its creation date. |
 | `idea_list` | None | Read all ideas, including their IDs. |
 | `idea_update` | `id`, `text` | Replace the text, keeping the original date. |
+| `idea_delete` | `id` | Delete an idea and return the removed record. |
+
+Use `idea_list` to find an idea's ID before editing or deleting it. An unknown ID returns an error without changing the file.
 
 ## Setup
 

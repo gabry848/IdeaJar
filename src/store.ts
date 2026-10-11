@@ -55,6 +55,15 @@ export class IdeaStore {
     return idea;
   }
 
+  delete(id: string): Idea {
+    const ideas = this.list();
+    const index = ideas.findIndex((item) => item.id === id);
+    if (index === -1) throw new Error(`Idea not found: ${id}`);
+    const [idea] = ideas.splice(index, 1);
+    this.save(ideas);
+    return idea;
+  }
+
   private save(ideas: Idea[]): void {
     mkdirSync(dirname(this.file), { recursive: true });
     const temporaryFile = `${this.file}.${randomUUID()}.tmp`;
