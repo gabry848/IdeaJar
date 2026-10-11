@@ -40,7 +40,7 @@ function value(result) {
 test("stdio tools save, list, update, and persist across restarts", async (t) => {
   const { client, file, directory } = await fixture(t);
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["idea_add", "idea_list", "idea_update"]);
+  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["idea_add", "idea_delete", "idea_list", "idea_update"]);
   assert.deepEqual(value(await client.callTool({ name: "idea_list", arguments: {} })), []);
 
   const text = "  Provare ciò che mi ha mandato Marco\nhttps://example.com  ";
@@ -63,6 +63,34 @@ test("stdio tools save, list, update, and persist across restarts", async (t) =>
   assert.deepEqual(value(await restarted.callTool({ name: "idea_list", arguments: {} })), [updated]);
 });
 
+test("deleting an idea preserves the others and persists across restarts", async (t) => {
+  const { client, file, directory } = await fixture(t);
+  const ideas = [];
+  for (const text of ["Keep the first", "Delete this", "Keep the last"]) {
+    ideas.push(value(await client.callTool({ name: "idea_add", arguments: { text } })));
+  }
+
+  const deleted = value(await client.callTool({
+    name: "idea_delete",
+    arguments: { id: ideas[1].id },
+  }));
+  assert.deepEqual(deleted, ideas[1]);
+  const remaining = [ideas[0], ideas[2]];
+  assert.deepEqual(value(await client.callTool({ name: "idea_list", arguments: {} })), remaining);
+  assert.deepEqual(JSON.parse(await readFile(file, "utf8")), remaining);
+
+  await client.close();
+  const restarted = await connect(file, directory);
+  t.after(() => restarted.close());
+  assert.deepEqual(value(await restarted.callTool({ name: "idea_list", arguments: {} })), remaining);
+
+  for (const idea of remaining) {
+    value(await restarted.callTool({ name: "idea_delete", arguments: { id: idea.id } }));
+  }
+  assert.deepEqual(value(await restarted.callTool({ name: "idea_list", arguments: {} })), []);
+  assert.deepEqual(JSON.parse(await readFile(file, "utf8")), []);
+});
+
 test("invalid input and unknown IDs leave saved ideas untouched", async (t) => {
   const { client, file } = await fixture(t);
   value(await client.callTool({ name: "idea_add", arguments: { text: "Keep this" } }));
@@ -71,6 +99,8 @@ test("invalid input and unknown IDs leave saved ideas untouched", async (t) => {
     { name: "idea_add", arguments: { text: " \n " } },
     { name: "idea_update", arguments: { id: randomUUID(), text: "Missing idea" } },
     { name: "idea_update", arguments: { id: "invalid", text: "Invalid ID" } },
+    { name: "idea_delete", arguments: { id: randomUUID() } },
+    { name: "idea_delete", arguments: { id: "invalid" } },
   ]) {
     assert.equal((await client.callTool(request)).isError, true);
     assert.equal(await readFile(file, "utf8"), original);
@@ -90,12 +120,13 @@ test("simultaneous requests within one process do not lose ideas", async (t) => 
 
 test("corrupt or invalid existing files are reported and never overwritten", async (t) => {
   const { client, file } = await fixture(t);
-  value(await client.callTool({ name: "idea_add", arguments: { text: "Create file" } }));
+  const idea = value(await client.callTool({ name: "idea_add", arguments: { text: "Create file" } }));
   for (const contents of ["{broken", '[{"text":"Missing fields"}]']) {
     await writeFile(file, contents);
     for (const request of [
       { name: "idea_list", arguments: {} },
       { name: "idea_add", arguments: { text: "Do not overwrite" } },
+      { name: "idea_delete", arguments: { id: idea.id } },
     ]) {
       const result = await client.callTool(request);
       assert.equal(result.isError, true);
